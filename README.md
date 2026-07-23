@@ -1,95 +1,71 @@
-# ASO App Store Screenshots
+# Claude Skill: ASO Store Screenshots (no-API fork)
 
-A Claude Code skill that generates high-converting App Store screenshots for your iOS app. It analyzes your codebase, identifies core benefits, and creates professional screenshot images using AI.
+A [Claude Code](https://claude.com/claude-code) skill that analyzes your app's
+codebase, discovers the core benefits that drive downloads, and composes
+high-converting **App Store and Google Play** screenshots.
 
-## What It Does
+This is a fork of
+[adamlyttleapps/claude-skill-aso-appstore-screenshots](https://github.com/adamlyttleapps/claude-skill-aso-appstore-screenshots)
+with one big change and several additions:
 
-1. **Benefit Discovery** — Analyzes your app's codebase to identify the 3-5 core benefits that drive downloads
-2. **Screenshot Pairing** — Reviews your simulator screenshots, rates them, and pairs each with the best benefit
-3. **Generation** — Creates polished App Store screenshots using a two-stage process: deterministic scaffolding (compose.py) + AI enhancement (Nano Banana Pro via Gemini MCP)
-4. **Showcase** — Generates a preview image with all screenshots side-by-side
+## What's different in this fork
 
-## Installation
+- **No Gemini / Nano Banana / MCP servers / API keys.** The original used a
+  deterministic Pillow scaffold and then sent it to an image AI for "polish."
+  This fork makes the compositor good enough on its own: gradient and radial-glow
+  background styles, soft device shadows, and a deterministic breakout-panel
+  effect (crop a real UI panel from your screenshot, scale it, float it over the
+  frame). 100% local, reproducible output.
+- **Exact store dimensions, no post-processing.** The original generated 9:16 AI
+  images and then cropped/resized them to Apple's sizes. Deterministic
+  composition renders at the exact target dimensions directly — the whole
+  crop/resize phase is gone.
+- **Google Play support.** `--preset play` (1080x1920) with a code-drawn Android
+  punch-hole frame, plus `feature.py` for the required 1024x500 Play feature
+  graphic. App Store presets (6.5"/6.7"/6.9") unchanged.
+- **Screenshot capture built in.** The skill offers to capture screenshots from
+  a connected Android device (adb), the iOS Simulator, or your project's render
+  harness instead of making you hunt for files.
+- **Portable fonts.** The original hardcoded macOS-only SF Pro paths; this fork
+  resolves a heavy sans-serif across macOS/Linux/Windows, or drop your own at
+  `assets/headline.ttf` (or pass `--font`).
+- **Three style variants per screenshot** (flat / gradient / glow) replace the
+  original's three AI rerolls — you still pick from 3, but they're instant,
+  free, and identical every time you regenerate.
 
-### 1. Add the skill to Claude Code
+Everything else that made the original great is kept: the benefit-discovery
+interview, screenshot rating and pairing, brand-colour workflow, per-set
+consistency rules, memory-based resume, and the showcase image.
+
+## Install
 
 ```bash
-claude install-skill github.com/adamlyttleapps/claude-skill-aso-appstore-screenshots
+mkdir -p ~/.claude/skills
+git clone https://github.com/kelsierbot/claude-skill-aso-appstore-screenshots.git \
+  ~/.claude/skills/aso-appstore-screenshots
 ```
 
-### 2. Install Python dependencies
+Requires Python 3 with Pillow (`pip install pillow`).
 
-```bash
-pip install Pillow
-```
+## Use
 
-### 3. Font requirement
-
-The skill uses **SF Pro Display Black** for headline text. On macOS, install it from [Apple's developer fonts](https://developer.apple.com/fonts/). The expected path is:
-
-```
-/Library/Fonts/SF-Pro-Display-Black.otf
-```
-
-### 4. Set up Gemini MCP (for AI enhancement)
-
-The generation phase requires [@houtini/gemini-mcp](https://www.npmjs.com/package/@houtini/gemini-mcp) to be configured as an MCP server in Claude Code:
-
-```bash
-npm install -g @houtini/gemini-mcp
-```
-
-Then add it to your Claude Code MCP config (`~/.claude/settings.json` or project `.mcp.json`).
-
-## Usage
-
-From within your app's project directory, run:
+In Claude Code, from your app's repo:
 
 ```
 /aso-appstore-screenshots
 ```
 
-The skill will guide you through each phase interactively. Progress is saved to Claude Code's memory system, so you can resume across conversations.
+Claude analyzes the codebase, interviews you about benefits, pairs screenshots,
+and composes the set. Scripts can also be run standalone:
 
-## How It Works
-
-### Scaffold → Enhance Pipeline
-
-Rather than generating screenshots from scratch (which produces inconsistent results), the skill uses a two-stage approach:
-
-1. **compose.py** creates a deterministic scaffold with exact text positioning, device frame, and your simulator screenshot composited inside
-2. **Nano Banana Pro** (via Gemini MCP) enhances the scaffold — adding a photorealistic device frame, breakout elements, and visual polish
-
-This ensures consistent layout across all screenshots while letting AI handle the creative enhancement.
-
-### Output
-
-Screenshots are saved to a `screenshots/` directory in your project:
-
-```
-screenshots/
-  01-benefit-slug/          ← working versions
-    scaffold.png            ← deterministic compose.py output
-    v1.png, v2.png, v3.png  ← AI-enhanced versions
-    v1-resized.png, ...     ← cropped to App Store dimensions
-  final/                    ← approved screenshots, ready to upload
-    01-benefit-slug.png
-    02-benefit-slug.png
-  showcase.png              ← preview image with all screenshots
+```bash
+python3 compose.py --preset play --bg "#7A4FBF" --verb "ADOPT" \
+  --desc "INFINITE COSMIC CATS" --screenshot shot.png --style glow --output out.png
+python3 feature.py --bg "#7A4FBF" --verb "MYAPP" --desc "THE TAGLINE" \
+  --screenshot shot.png --output feature.png
 ```
 
-The `final/` folder contains App Store-ready screenshots at exact Apple dimensions (default: 1290×2796px for iPhone 6.7").
+## Credits
 
-## Files
-
-| File | Purpose |
-|------|---------|
-| `SKILL.md` | The skill prompt — defines the multi-phase workflow |
-| `compose.py` | Deterministic scaffold generator (Pillow-based) |
-| `generate_frame.py` | Generates the device frame template |
-| `showcase.py` | Generates the side-by-side showcase image |
-| `assets/device_frame.png` | Pre-rendered iPhone device frame template |
-
-## License
-
-MIT
+Original skill by [Adam Lyttle](https://github.com/adamlyttleapps). Fork
+maintained by kelsierbot.

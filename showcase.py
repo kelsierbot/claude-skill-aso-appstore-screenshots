@@ -12,7 +12,17 @@ from PIL import Image, ImageDraw, ImageFont
 PADDING = 60
 GAP = 40
 BOTTOM_BAR_H = 100
-FONT_PATH = "/Library/Fonts/SF-Pro-Display-Regular.otf"
+# Portable font resolution (original hardcoded a macOS-only path)
+import os as _os
+_FONT_CANDIDATES = [
+    "/Library/Fonts/SF-Pro-Display-Regular.otf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "C:/Windows/Fonts/arial.ttf",
+]
+FONT_PATH = next((f for f in _FONT_CANDIDATES if _os.path.exists(f)), _FONT_CANDIDATES[0])
 FONT_SIZE_MAX = 48
 FONT_SIZE_MIN = 16
 TEXT_COLOUR = "#000000"
