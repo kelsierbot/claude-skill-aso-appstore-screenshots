@@ -14,7 +14,7 @@ Presets:
 
 Styles (v1/v2/v3 variant picks without any AI):
     flat      solid brand colour (the classic high-converting look)
-    gradient  brand colour fading ~22%% darker toward the bottom
+    gradient  diagonal two-hue blend (brand colour -> auto magenta-shift, or --bg2)
     glow      flat + a soft radial light behind the device
 
 Optional deterministic breakout: crop a UI panel from the SOURCE screenshot,
@@ -141,12 +141,35 @@ def compose(args):
     # 1. Background
     canvas = Image.new("RGBA", (canvas_w, canvas_h), (*bg, 255))
     if args.style == "gradient":
-        dark = tuple(int(c * 0.78) for c in bg)
-        grad = Image.new("RGBA", (1, canvas_h))
-        for y in range(canvas_h):
-            t = y / max(1, canvas_h - 1)
-            grad.putpixel((0, y), tuple(int(a + (b - a) * t) for a, b in zip(bg, dark)) + (255,))
-        canvas = grad.resize((canvas_w, canvas_h))
+        # End colour: explicit --bg2, else an auto hue-shifted partner (toward magenta,
+        # slightly deeper) — a real two-hue gradient, not a flat darken. Diagonal by default.
+        if args.bg2:
+            end = hex_to_rgb(args.bg2)
+        else:
+            import colorsys
+            h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in bg])
+            h2 = (h - 0.07) % 1.0            # rotate toward pink/magenta
+            l2 = max(0.0, l - 0.06)
+            s2 = min(1.0, s + 0.12)
+            end = tuple(int(c * 255) for c in colorsys.hls_to_rgb(h2, l2, s2))
+        diag = args.gradient_dir == "diagonal"
+        try:
+            import numpy as np
+            ys = np.linspace(0, 1, canvas_h)[:, None]
+            xs = np.linspace(0, 1, canvas_w)[None, :]
+            t = (xs + ys) / 2.0 if diag else np.repeat(ys, canvas_w, axis=1)
+            arr = np.zeros((canvas_h, canvas_w, 4), dtype=np.uint8)
+            for i in range(3):
+                arr[..., i] = (bg[i] + (end[i] - bg[i]) * t).astype(np.uint8)
+            arr[..., 3] = 255
+            canvas = Image.fromarray(arr, "RGBA")
+        except ImportError:
+            # pure-Pillow fallback: vertical only, fast via 1-px column resize
+            grad = Image.new("RGBA", (1, canvas_h))
+            for yy in range(canvas_h):
+                tv = yy / max(1, canvas_h - 1)
+                grad.putpixel((0, yy), tuple(int(a + (b - a) * tv) for a, b in zip(bg, end)) + (255,))
+            canvas = grad.resize((canvas_w, canvas_h))
 
     # 2. Headline (verb auto-fit, desc wrapped) — exact same treatment as the original
     verb_font = fit_font(
@@ -261,6 +284,8 @@ def main():
     p.add_argument("--frame", choices=["iphone", "android", "none"], default=None,
                    help="Device frame style (default: per preset)")
     p.add_argument("--style", choices=["flat", "gradient", "glow"], default="flat")
+    p.add_argument("--bg2", help="Gradient end colour hex (default: auto hue-shift toward magenta)")
+    p.add_argument("--gradient-dir", choices=["vertical", "diagonal"], default="diagonal")
     p.add_argument("--font", help="Path to a heavy sans-serif font (overrides auto-detect)")
     p.add_argument("--breakout", help="X,Y,W,H rect in the source screenshot to pop out")
     p.add_argument("--breakout-scale", type=float, default=1.55)
